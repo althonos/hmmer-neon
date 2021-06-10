@@ -96,7 +96,7 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
   __m256i *rsc;			   /* will point at om->ru[x] for residue x[i]                  */
   __m256i *tsc;			   /* will point into (and step thru) om->tu                    */
 
-  __m256i negInfv;
+  __m256i negInfv;  /* negInfv = 32-byte vector, 30 0 bytes + 2-byte value=-32768, for an OR operation. */
 
   /* Check that the DP matrix is ok for us. */
   if (Q > ox->allocQ16)                                ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
@@ -104,8 +104,7 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
   ox->M   = om->M;
 
   /* -infinity is -32768 */
-  negInfv = _mm256_set1_epi16(-32768);
-  negInfv = _mm256_srli_si256(negInfv, 14);  /* negInfv = 16-byte vector, 14 0 bytes + 2-byte value=-32768, for an OR operation. */
+  negInfv = _mm256_set_epi16(-32768, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
   /* Initialization. In unsigned arithmetic, -infinity is -32768
    */
@@ -125,7 +124,7 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
     {
       rsc   = om->rwv[dsq[i]];
       tsc   = om->twv;
-      dcv   = _mm256_set1_epi16(-32768);      /* "-infinity" */
+      dcv   = _mm256_set1_epi16(-32768);
       xEv   = _mm256_set1_epi16(-32768);
       Dmaxv = _mm256_set1_epi16(-32768);
       xBv   = _mm256_set1_epi16(xB);
@@ -134,9 +133,9 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
        * Because ia32 is littlendian, this means a left bit shift.
        * Zeros shift on automatically; replace it with -32768.
        */
-      mpv = MMXo(Q-1);  mpv = _mm256_slli_si256(mpv, 2);  mpv = _mm256_or_si256(mpv, negInfv);
-      dpv = DMXo(Q-1);  dpv = _mm256_slli_si256(dpv, 2);  dpv = _mm256_or_si256(dpv, negInfv);
-      ipv = IMXo(Q-1);  ipv = _mm256_slli_si256(ipv, 2);  ipv = _mm256_or_si256(ipv, negInfv);
+      mpv = esl_avx_rightshift_int16(MMXo(Q-1), negInfv);
+      dpv = esl_avx_rightshift_int16(DMXo(Q-1), negInfv);
+      ipv = esl_avx_rightshift_int16(IMXo(Q-1), negInfv);
 
       for (q = 0; q < Q; q++)
       {
@@ -198,8 +197,7 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
 	{
 	  /* Now we're obligated to do at least one complete DD path to be sure. */
 	  /* dcv has carried through from end of q loop above */
-	  dcv = _mm256_slli_si256(dcv, 2);
-	  dcv = _mm256_or_si256(dcv, negInfv);
+    dcv = esl_avx_rightshift_int16(dcv, negInfv);
 	  tsc = om->twv + 7*Q;	/* set tsc to start of the DD's */
 	  for (q = 0; q < Q; q++)
 	    {
@@ -212,8 +210,7 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
 	   * our score.
 	   */
 	  do {
-	    dcv = _mm256_slli_si256(dcv, 2);
-	    dcv = _mm256_or_si256(dcv, negInfv);
+      dcv = esl_avx_rightshift_int16(dcv, negInfv);
 	    tsc = om->twv + 7*Q;	/* set tsc to start of the DD's */
 	    for (q = 0; q < Q; q++)
 	      {
@@ -225,7 +222,7 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
 	}
       else  /* not calculating DD? then just store the last M->D vector calc'ed.*/
 	{
-	  dcv = _mm256_slli_si256(dcv, 2);
+    dcv = esl_avx_rightshift_int16(dcv, negInfv);
 	  DMXo(0) = _mm256_or_si256(dcv, negInfv);
 	}
 
@@ -340,8 +337,7 @@ p7_ViterbiFilter_longtarget(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7
   ox->M   = om->M;
 
   /* -infinity is -32768 */
-  negInfv = _mm256_set1_epi16(-32768);
-  negInfv = _mm256_srli_si256(negInfv, 14);  /* negInfv = 16-byte vector, 14 0 bytes + 2-byte value=-32768, for an OR operation. */
+    negInfv = _mm256_set_epi16(-32768, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
   /* Initialization. In unsigned arithmetic, -infinity is -32768
    */
@@ -371,9 +367,9 @@ p7_ViterbiFilter_longtarget(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7
        * Because ia32 is littlendian, this means a left bit shift.
        * Zeros shift on automatically; replace it with -32768.
        */
-      mpv = MMXo(Q-1);  mpv = _mm256_slli_si256(mpv, 2);  mpv = _mm256_or_si256(mpv, negInfv);
-      dpv = DMXo(Q-1);  dpv = _mm256_slli_si256(dpv, 2);  dpv = _mm256_or_si256(dpv, negInfv);
-      ipv = IMXo(Q-1);  ipv = _mm256_slli_si256(ipv, 2);  ipv = _mm256_or_si256(ipv, negInfv);
+      mpv = esl_avx_rightshift_int16(MMXo(Q-1), negInfv);
+      dpv = esl_avx_rightshift_int16(DMXo(Q-1), negInfv);
+      ipv = esl_avx_rightshift_int16(IMXo(Q-1), negInfv);
 
       for (q = 0; q < Q; q++)
       {
@@ -467,8 +463,7 @@ p7_ViterbiFilter_longtarget(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7
            * our score.
            */
           do {
-            dcv = _mm256_slli_si256(dcv, 2);
-            dcv = _mm256_or_si256(dcv, negInfv);
+            dcv = esl_avx_rightshift_int16(dcv, negInfv);
             tsc = om->twv + 7*Q;  /* set tsc to start of the DD's */
             for (q = 0; q < Q; q++)
             {
@@ -480,8 +475,7 @@ p7_ViterbiFilter_longtarget(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7
         }
         else  /* not calculating DD? then just store the last M->D vector calc'ed.*/
         {
-          dcv =     _mm256_slli_si256(dcv, 2);
-          DMXo(0) = _mm256_or_si256(dcv, negInfv);
+          DMXo(0) = esl_avx_rightshift_int16(dcv, negInfv);
         }
       }
 #if eslDEBUGLEVEL > 0
@@ -521,7 +515,7 @@ p7_ViterbiFilter_longtarget(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7
 #include "esl_stopwatch.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -711,7 +705,7 @@ utest_viterbi_filter(ESL_RANDOMNESS *r, ESL_ALPHABET *abc, P7_BG *bg, int M, int
 #include "esl_randomseq.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -790,7 +784,7 @@ main(int argc, char **argv)
 #include "esl_sqio.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
