@@ -73,12 +73,12 @@ p7_oprofile_Create(int allocM, const ESL_ALPHABET *abc)
   om->clone   = 0;
 
   /* level 1 */
-  ESL_ALLOC(om->rbv_mem, sizeof(__m256i) * nqb  * abc->Kp          +15); /* +15 is for manual 16-byte alignment */
-  ESL_ALLOC(om->sbv_mem, sizeof(__m256i) * nqs  * abc->Kp          +15);
-  ESL_ALLOC(om->rwv_mem, sizeof(__m256i) * nqw  * abc->Kp          +15);
-  ESL_ALLOC(om->twv_mem, sizeof(__m256i) * nqw  * p7O_NTRANS       +15);
-  ESL_ALLOC(om->rfv_mem, sizeof(__m256)  * nqf  * abc->Kp          +15);
-  ESL_ALLOC(om->tfv_mem, sizeof(__m256)  * nqf  * p7O_NTRANS       +15);
+  ESL_ALLOC(om->rbv_mem, sizeof(__m256i) * nqb  * abc->Kp          +0x1f); /* +31 is for manual 32-byte alignment */
+  ESL_ALLOC(om->sbv_mem, sizeof(__m256i) * nqs  * abc->Kp          +0x1f);
+  ESL_ALLOC(om->rwv_mem, sizeof(__m256i) * nqw  * abc->Kp          +0x1f);
+  ESL_ALLOC(om->twv_mem, sizeof(__m256i) * nqw  * p7O_NTRANS       +0x1f);
+  ESL_ALLOC(om->rfv_mem, sizeof(__m256)  * nqf  * abc->Kp          +0x1f);
+  ESL_ALLOC(om->tfv_mem, sizeof(__m256)  * nqf  * p7O_NTRANS       +0x1f);
 
   ESL_ALLOC(om->rbv, sizeof(__m256i *) * abc->Kp);
   ESL_ALLOC(om->sbv, sizeof(__m256i *) * abc->Kp);
@@ -223,12 +223,12 @@ p7_oprofile_Sizeof(P7_OPROFILE *om)
    * maintainability and clarity.
    */
   n  += sizeof(P7_OPROFILE);
-  n  += sizeof(__m256i) * nqb  * om->abc->Kp +15; /* om->rbv_mem   */
-  n  += sizeof(__m256i) * nqs  * om->abc->Kp +15; /* om->sbv_mem   */
-  n  += sizeof(__m256i) * nqw  * om->abc->Kp +15; /* om->rwv_mem   */
-  n  += sizeof(__m256i) * nqw  * p7O_NTRANS  +15; /* om->twv_mem   */
-  n  += sizeof(__m256)  * nqf  * om->abc->Kp +15; /* om->rfv_mem   */
-  n  += sizeof(__m256)  * nqf  * p7O_NTRANS  +15; /* om->tfv_mem   */
+  n  += sizeof(__m256i) * nqb  * om->abc->Kp +0x1f; /* om->rbv_mem   */
+  n  += sizeof(__m256i) * nqs  * om->abc->Kp +0x1f; /* om->sbv_mem   */
+  n  += sizeof(__m256i) * nqw  * om->abc->Kp +0x1f; /* om->rwv_mem   */
+  n  += sizeof(__m256i) * nqw  * p7O_NTRANS  +0x1f; /* om->twv_mem   */
+  n  += sizeof(__m256)  * nqf  * om->abc->Kp +0x1f; /* om->rfv_mem   */
+  n  += sizeof(__m256)  * nqf  * p7O_NTRANS  +0x1f; /* om->tfv_mem   */
 
   n  += sizeof(__m256i *) * om->abc->Kp;          /* om->rbv       */
   n  += sizeof(__m256i *) * om->abc->Kp;          /* om->sbv       */
@@ -287,12 +287,12 @@ p7_oprofile_Copy(P7_OPROFILE *om1)
   om2->tfv     = NULL;
 
   /* level 1 */
-  ESL_ALLOC(om2->rbv_mem, sizeof(__m256i) * nqb  * abc->Kp    +15);	/* +15 is for manual 16-byte alignment */
-  ESL_ALLOC(om2->sbv_mem, sizeof(__m256i) * nqs  * abc->Kp    +15);
-  ESL_ALLOC(om2->rwv_mem, sizeof(__m256i) * nqw  * abc->Kp    +15);
-  ESL_ALLOC(om2->twv_mem, sizeof(__m256i) * nqw  * p7O_NTRANS +15);
-  ESL_ALLOC(om2->rfv_mem, sizeof(__m256)  * nqf  * abc->Kp    +15);
-  ESL_ALLOC(om2->tfv_mem, sizeof(__m256)  * nqf  * p7O_NTRANS +15);
+  ESL_ALLOC(om2->rbv_mem, sizeof(__m256i) * nqb  * abc->Kp    +0x1f);	/* +31 is for manual 32-byte alignment */
+  ESL_ALLOC(om2->sbv_mem, sizeof(__m256i) * nqs  * abc->Kp    +0x1f);
+  ESL_ALLOC(om2->rwv_mem, sizeof(__m256i) * nqw  * abc->Kp    +0x1f);
+  ESL_ALLOC(om2->twv_mem, sizeof(__m256i) * nqw  * p7O_NTRANS +0x1f);
+  ESL_ALLOC(om2->rfv_mem, sizeof(__m256)  * nqf  * abc->Kp    +0x1f);
+  ESL_ALLOC(om2->tfv_mem, sizeof(__m256)  * nqf  * p7O_NTRANS +0x1f);
 
   ESL_ALLOC(om2->rbv, sizeof(__m256i *) * abc->Kp);
   ESL_ALLOC(om2->sbv, sizeof(__m256i *) * abc->Kp);
@@ -442,14 +442,14 @@ p7_oprofile_UpdateFwdEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
   int     nq  = p7O_NQF(M);     /* segment length; total # of striped vectors needed            */
   int     K   = om->abc->K;
   int     Kp  = om->abc->Kp;
-  union   { __m256 v; float x[4]; } tmp; /* used to align and load simd minivectors               */
+  union   { __m256 v; float x[8]; } tmp; /* used to align and load simd minivectors               */
 
 
   for (k = 1, q = 0; q < nq; q++, k++) {
 
     //First compute the core characters of the alphabet
     for (x = 0; x < K; x++) {
-      for (z = 0; z < 4; z++) {
+      for (z = 0; z < 8; z++) {
         if (k+ z*nq <= M)  sc_arr[z*Kp + x] =  (om->mm && om->mm[(k+z*nq)]=='m') ? 0 : log( (double)(fwd_emissions[Kp * (k+z*nq) + x])/bg->f[x]);
         else               sc_arr[z*Kp + x] =  -eslINFINITY;
 
@@ -462,7 +462,7 @@ p7_oprofile_UpdateFwdEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
     /* gap, nonresidue, and missing data residue codes don't get set by FExpectScVec(),
      * so do them
      */
-    for (z = 0; z < 4; z++)
+    for (z = 0; z < 8; z++)
       {
 	sc_arr[z*Kp + K]        = -eslINFINITY; /* gap char -     */
 	sc_arr[z*Kp + (Kp - 2)] = -eslINFINITY; /* nonresidue *   */
@@ -470,12 +470,12 @@ p7_oprofile_UpdateFwdEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
       }
 
     // Then compute corresponding scores for ambiguity codes.
-    for (z = 0; z < 4; z++)
+    for (z = 0; z < 8; z++)
       esl_abc_FExpectScVec(om->abc, sc_arr+(z*Kp), bg->f);
 
     //finish off the interleaved values
     for (x = K; x < Kp; x++) {
-      for (z = 0; z < 4; z++)
+      for (z = 0; z < 8; z++)
          tmp.x[z] = sc_arr[z*Kp + x];  // computed in FExpectScVec call above
       om->rfv[x][q] = esl_avx_expf(tmp.v);
     }
@@ -516,7 +516,7 @@ p7_oprofile_UpdateVitEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
 
     //First compute the core characters of the alphabet
     for (x = 0; x < K; x++) {
-      for (z = 0; z < 8; z++) {
+      for (z = 0; z < 16; z++) {
         idx = z*Kp + x;
         if (k+ z*nq <= M)  {
           sc_arr[idx] = (om->mm && om->mm[(k+z*nq)]=='m') ? 0 : log( (double)(fwd_emissions[Kp * (k+z*nq) + x])/bg->f[x]);
@@ -539,7 +539,7 @@ p7_oprofile_UpdateVitEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
 
     //finish off the interleaved values
     for (x = K; x < Kp; x++) {
-      for (z = 0; z < 8; z++) {
+      for (z = 0; z < 16; z++) {
         idx = z*Kp + x;
         if (x==K || x>Kp-3 || sc_arr[idx] == -eslINFINITY)
           tmp.i[z]  =  -32768;
@@ -592,7 +592,7 @@ p7_oprofile_UpdateMSVEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
    */
   for (k = 1, q = 0; q < nq; q++, k++) {
     for (x = 0; x < K; x++) {
-      for (z = 0; z < 16; z++) {
+      for (z = 0; z < 32; z++) {
         idx = z*Kp + x;
         if (k+ z*nq <= M && !(om->mm && om->mm[(k+z*nq)]=='m'))
           max = ESL_MAX(max, log( (double)(fwd_emissions[Kp * (k+z*nq) + x])/bg->f[x]));
@@ -607,7 +607,7 @@ p7_oprofile_UpdateMSVEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
 
     //First compute the core characters of the alphabet
     for (x = 0; x < K; x++) {
-      for (z = 0; z < 16; z++) {
+      for (z = 0; z < 32; z++) {
         idx = z*Kp + x;
         if (k+ z*nq <= M)  {
           sc_arr[idx] = (om->mm && om->mm[(k+z*nq)]=='m') ? 0 : log( (double)(fwd_emissions[Kp * (k+z*nq) + x])/bg->f[x]);
@@ -625,12 +625,12 @@ p7_oprofile_UpdateMSVEmissionScores(P7_OPROFILE *om, P7_BG *bg, float *fwd_emiss
     }
 
     // Then compute corresponding scores for ambiguity codes.
-    for (z = 0; z < 16; z++)
+    for (z = 0; z < 32; z++)
       esl_abc_FExpectScVec(om->abc, sc_arr+(z*Kp), bg->f);
 
     //finish off the interleaved values
     for (x = K; x < Kp; x++) {
-      for (z = 0; z < 16; z++) {
+      for (z = 0; z < 32; z++) {
         idx = z*Kp + x;
         if (x==K || x>Kp-3 || sc_arr[idx] == -eslINFINITY)
           tmp.i[z]  =  255;

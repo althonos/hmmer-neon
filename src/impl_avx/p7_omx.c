@@ -97,7 +97,7 @@ p7_omx_Create(int allocM, int allocL, int allocXL)
   }
 
   ox->allocXR = allocXL+1;
-  ESL_ALLOC(ox->x_mem,  sizeof(float) * ox->allocXR * p7X_NXCELLS + 0x1f);
+  ESL_ALLOC(ox->x_mem,  sizeof(float) * ox->allocXR * p7X_NXCELLS  + 0x1f);
   ox->xmx = (float *) ( ( (unsigned long int) ((char *) ox->x_mem  + 0x1f) & (~0x1f)));
 
   ox->M              = 0;
@@ -194,7 +194,7 @@ p7_omx_GrowTo(P7_OMX *ox, int allocM, int allocL, int allocXL)
       ox->dpw[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
       ox->dpf[0] = (__m256  *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
 
-      ox->validR = ESL_MIN( ox->ncells / (nqf * 4), ox->allocR);
+      ox->validR = ESL_MIN( ox->ncells / (nqf * 8), ox->allocR);
       for (i = 1; i < ox->validR; i++)
 	{
 	  ox->dpb[i] = ox->dpb[0] + i * nqb;
@@ -241,9 +241,9 @@ p7_omx_FDeconvert(P7_OMX *ox, P7_GMX *gx)
       MMX(i,0) = DMX(i,0) = IMX(i,0) = -eslINFINITY;
       for (q = 0; q < Q; q++)
 	{
-	  u.v = MMO(ox->dpf[i],q);  for (r = 0; r < 4; r++) { k = (Q*r)+q+1; if (k <= ox->M) MMX(i, (Q*r)+q+1) = u.p[r]; }
-	  u.v = DMO(ox->dpf[i],q);  for (r = 0; r < 4; r++) { k = (Q*r)+q+1; if (k <= ox->M) DMX(i, (Q*r)+q+1) = u.p[r]; }
-	  u.v = IMO(ox->dpf[i],q);  for (r = 0; r < 4; r++) { k = (Q*r)+q+1; if (k <= ox->M) IMX(i, (Q*r)+q+1) = u.p[r]; }
+	  u.v = MMO(ox->dpf[i],q);  for (r = 0; r < 8; r++) { k = (Q*r)+q+1; if (k <= ox->M) MMX(i, (Q*r)+q+1) = u.p[r]; }
+	  u.v = DMO(ox->dpf[i],q);  for (r = 0; r < 8; r++) { k = (Q*r)+q+1; if (k <= ox->M) DMX(i, (Q*r)+q+1) = u.p[r]; }
+	  u.v = IMO(ox->dpf[i],q);  for (r = 0; r < 8; r++) { k = (Q*r)+q+1; if (k <= ox->M) IMX(i, (Q*r)+q+1) = u.p[r]; }
 	}
       XMX(i,p7G_E) = ox->xmx[i*p7X_NXCELLS+p7X_E];
       XMX(i,p7G_N) = ox->xmx[i*p7X_NXCELLS+p7X_N];
@@ -391,7 +391,7 @@ p7_omx_DumpMFRow(P7_OMX *ox, int rowi, uint8_t xE, uint8_t xN, uint8_t xJ, uint8
   union { __m256i v; uint8_t i[32]; } tmp;
   int      status;
 
-  ESL_ALLOC(v, sizeof(unsigned char) * ((Q*16)+1));
+  ESL_ALLOC(v, sizeof(uint8_t) * ((Q*32)+1));
   v[0] = 0;
 
   /* Header (if we're on the 0th row)  */
@@ -408,7 +408,7 @@ p7_omx_DumpMFRow(P7_OMX *ox, int rowi, uint8_t xE, uint8_t xN, uint8_t xJ, uint8
   /* Unpack and unstripe, then print M's. */
   for (q = 0; q < Q; q++) {
     tmp.v = dp[q];
-    for (z = 0; z < 16; z++) v[q+Q*z+1] = tmp.i[z];
+    for (z = 0; z < 32; z++) v[q+Q*z+1] = tmp.i[z];
   }
   fprintf(ox->dfp, "%4d M ", rowi);
   for (k = 0; k <= M; k++) fprintf(ox->dfp, "%3d ", v[k]);
@@ -464,7 +464,7 @@ p7_omx_DumpVFRow(P7_OMX *ox, int rowi, int16_t xE, int16_t xN, int16_t xJ, int16
   union { __m256i v; int16_t i[16]; } tmp;
   int      status;
 
-  ESL_ALLOC(v, sizeof(int16_t) * ((Q*8)+1));
+  ESL_ALLOC(v, sizeof(int16_t) * ((Q*16)+1));
   v[0] = 0;
 
   /* Header (if we're on the 0th row)
@@ -482,7 +482,7 @@ p7_omx_DumpVFRow(P7_OMX *ox, int rowi, int16_t xE, int16_t xN, int16_t xJ, int16
   /* Unpack and unstripe, then print M's. */
   for (q = 0; q < Q; q++) {
     tmp.v = MMXo(q);
-    for (z = 0; z < 8; z++) v[q+Q*z+1] = tmp.i[z];
+    for (z = 0; z < 16; z++) v[q+Q*z+1] = tmp.i[z];
   }
   fprintf(ox->dfp, "%4d M ", rowi);
   for (k = 0; k <= M; k++) fprintf(ox->dfp, "%6d ", v[k]);
@@ -493,7 +493,7 @@ p7_omx_DumpVFRow(P7_OMX *ox, int rowi, int16_t xE, int16_t xN, int16_t xJ, int16
   /* Unpack and unstripe, then print I's. */
   for (q = 0; q < Q; q++) {
     tmp.v = IMXo(q);
-    for (z = 0; z < 8; z++) v[q+Q*z+1] = tmp.i[z];
+    for (z = 0; z < 16; z++) v[q+Q*z+1] = tmp.i[z];
   }
   fprintf(ox->dfp, "%4d I ", rowi);
   for (k = 0; k <= M; k++) fprintf(ox->dfp, "%6d ", v[k]);
@@ -502,7 +502,7 @@ p7_omx_DumpVFRow(P7_OMX *ox, int rowi, int16_t xE, int16_t xN, int16_t xJ, int16
   /* Unpack, unstripe, then print D's. */
   for (q = 0; q < Q; q++) {
     tmp.v = DMXo(q);
-    for (z = 0; z < 8; z++) v[q+Q*z+1] = tmp.i[z];
+    for (z = 0; z < 16; z++) v[q+Q*z+1] = tmp.i[z];
   }
   fprintf(ox->dfp, "%4d D ", rowi);
   for (k = 0; k <= M; k++) fprintf(ox->dfp, "%6d ", v[k]);
@@ -556,7 +556,7 @@ p7_omx_DumpFBRow(P7_OMX *ox, int logify, int rowi, int width, int precision, flo
 
   dp = (ox->allocR == 1) ? ox->dpf[0] :	ox->dpf[rowi];	  /* must set <dp> before using {MDI}MX macros */
 
-  ESL_ALLOC(v, sizeof(float) * ((Q*4)+1));
+  ESL_ALLOC(v, sizeof(float) * ((Q*8)+1));
   v[0] = 0.;
 
   if (rowi == 0)
@@ -572,7 +572,7 @@ p7_omx_DumpFBRow(P7_OMX *ox, int logify, int rowi, int width, int precision, flo
   /* Unpack, unstripe, then print M's. */
   for (q = 0; q < Q; q++) {
     tmp.v = MMXo(q);
-    for (z = 0; z < 4; z++) v[q+Q*z+1] = tmp.x[z];
+    for (z = 0; z < 8; z++) v[q+Q*z+1] = tmp.x[z];
   }
   fprintf(ox->dfp, "%3d M ", rowi);
   if (logify) for (k = 0; k <= M; k++) fprintf(ox->dfp, "%*.*f ", width, precision, v[k] == 0. ? -eslINFINITY : log(v[k]));
@@ -592,7 +592,7 @@ p7_omx_DumpFBRow(P7_OMX *ox, int logify, int rowi, int width, int precision, flo
   /* Unpack, unstripe, then print I's. */
   for (q = 0; q < Q; q++) {
     tmp.v = IMXo(q);
-    for (z = 0; z < 4; z++) v[q+Q*z+1] = tmp.x[z];
+    for (z = 0; z < 8; z++) v[q+Q*z+1] = tmp.x[z];
   }
   fprintf(ox->dfp, "%3d I ", rowi);
   if (logify) for (k = 0; k <= M; k++) fprintf(ox->dfp, "%*.*f ", width, precision, v[k] == 0. ? -eslINFINITY : log(v[k]));
@@ -602,7 +602,7 @@ p7_omx_DumpFBRow(P7_OMX *ox, int logify, int rowi, int width, int precision, flo
   /* Unpack, unstripe, then print D's. */
   for (q = 0; q < Q; q++) {
     tmp.v = DMXo(q);
-    for (z = 0; z < 4; z++) v[q+Q*z+1] = tmp.x[z];
+    for (z = 0; z < 8; z++) v[q+Q*z+1] = tmp.x[z];
   }
   fprintf(ox->dfp, "%3d D ", rowi);
   if (logify) for (k = 0; k <= M; k++) fprintf(ox->dfp, "%*.*f ", width, precision, v[k] == 0. ? -eslINFINITY : log(v[k]));
