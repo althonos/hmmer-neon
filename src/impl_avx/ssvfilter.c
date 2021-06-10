@@ -516,6 +516,7 @@
   rsc = om->sbv[dsq[i]] + pos;                                   \
   step()                                                        \
   sv = _mm256_alignr_epi8(sv, _mm256_permute2x128_si256(sv, sv, _MM_SHUFFLE(0,0,3,0)), 15);       \
+  sv = _mm256_or_si256(sv, beginv);                                \
   i++;
 
 
