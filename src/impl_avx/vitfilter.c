@@ -99,7 +99,7 @@ p7_ViterbiFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, f
   __m256i negInfv;
 
   /* Check that the DP matrix is ok for us. */
-  if (Q > ox->allocQ8)                                 ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
+  if (Q > ox->allocQ16)                                ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
   if (om->mode != p7_LOCAL && om->mode != p7_UNILOCAL) ESL_EXCEPTION(eslEINVAL, "Fast filter only works for local alignment");
   ox->M   = om->M;
 
@@ -335,7 +335,7 @@ p7_ViterbiFilter_longtarget(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7
                 - (float)om->xw[p7O_E][p7O_MOVE] - (float)om->xw[p7O_C][p7O_MOVE] + (float)om->base_w );
 
   /* Check that the DP matrix is ok for us. */
-  if (Q > ox->allocQ8)                                 ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
+  if (Q > ox->allocQ16)                                ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
   if (om->mode != p7_LOCAL && om->mode != p7_UNILOCAL) ESL_EXCEPTION(eslEINVAL, "Fast filter only works for local alignment");
   ox->M   = om->M;
 
