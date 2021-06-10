@@ -73,32 +73,32 @@ p7_omx_Create(int allocM, int allocL, int allocXL)
   ox->xmx    = NULL;
   ox->x_mem  = NULL;
 
-  /* DP matrix will be allocated for allocL+1 rows 0,1..L; allocQ4*p7X_NSCELLS columns */
+  /* DP matrix will be allocated for allocL+1 rows 0,1..L; allocQ8*p7X_NSCELLS columns */
   ox->allocR   = allocL+1;
   ox->validR   = ox->allocR;
-  ox->allocQ4  = p7O_NQF(allocM);
-  ox->allocQ8  = p7O_NQW(allocM);
-  ox->allocQ16 = p7O_NQB(allocM);
-  ox->ncells   = ox->allocR * ox->allocQ4 * 4;      /* # of DP cells allocated, where 1 cell contains MDI */
+  ox->allocQ8  = p7O_NQF(allocM);
+  ox->allocQ16 = p7O_NQW(allocM);
+  ox->allocQ32 = p7O_NQB(allocM);
+  ox->ncells   = ox->allocR * ox->allocQ8 * 8;      /* # of DP cells allocated, where 1 cell contains MDI */
 
-  ESL_ALLOC(ox->dp_mem, sizeof(__m256) * ox->allocR * ox->allocQ4 * p7X_NSCELLS + 15);  /* floats always dominate; +15 for alignment */
+  ESL_ALLOC(ox->dp_mem, sizeof(__m256) * ox->allocR * ox->allocQ8 * p7X_NSCELLS + 0x1f);  /* floats always dominate; +31 for alignment */
   ESL_ALLOC(ox->dpb,    sizeof(__m256i *) * ox->allocR);
   ESL_ALLOC(ox->dpw,    sizeof(__m256i *) * ox->allocR);
   ESL_ALLOC(ox->dpf,    sizeof(__m256  *) * ox->allocR);
 
-  ox->dpb[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 15) & (~0xf)));
-  ox->dpw[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 15) & (~0xf)));
-  ox->dpf[0] = (__m256  *) ( ( (unsigned long int) ((char *) ox->dp_mem + 15) & (~0xf)));
+  ox->dpb[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
+  ox->dpw[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
+  ox->dpf[0] = (__m256  *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
 
   for (i = 1; i <= allocL; i++) {
-    ox->dpf[i] = ox->dpf[0] + i * ox->allocQ4  * p7X_NSCELLS;
-    ox->dpw[i] = ox->dpw[0] + i * ox->allocQ8  * p7X_NSCELLS;
-    ox->dpb[i] = ox->dpb[0] + i * ox->allocQ16;
+    ox->dpf[i] = ox->dpf[0] + i * ox->allocQ8  * p7X_NSCELLS;
+    ox->dpw[i] = ox->dpw[0] + i * ox->allocQ16 * p7X_NSCELLS;
+    ox->dpb[i] = ox->dpb[0] + i * ox->allocQ32;
   }
 
   ox->allocXR = allocXL+1;
-  ESL_ALLOC(ox->x_mem,  sizeof(float) * ox->allocXR * p7X_NXCELLS + 15);
-  ox->xmx = (float *) ( ( (unsigned long int) ((char *) ox->x_mem  + 15) & (~0xf)));
+  ESL_ALLOC(ox->x_mem,  sizeof(float) * ox->allocXR * p7X_NXCELLS + 0x1f);
+  ox->xmx = (float *) ( ( (unsigned long int) ((char *) ox->x_mem  + 0x1f) & (~0x1f)));
 
   ox->M              = 0;
   ox->L              = 0;
@@ -147,14 +147,14 @@ p7_omx_GrowTo(P7_OMX *ox, int allocM, int allocL, int allocXL)
   int    status;
 
   /* If all possible dimensions are already satisfied, the matrix is fine */
-  if (ox->allocQ4*4 >= allocM && ox->validR > allocL && ox->allocXR >= allocXL+1) return eslOK;
+  if (ox->allocQ8*8 >= allocM && ox->validR > allocL && ox->allocXR >= allocXL+1) return eslOK;
 
   /* If the main matrix is too small in cells, reallocate it;
    * and we'll need to realign/reset the row pointers later.
    */
   if (ncells > ox->ncells)
     {
-      ESL_RALLOC(ox->dp_mem, p, sizeof(__m256) * (allocL+1) * nqf * p7X_NSCELLS + 15);
+      ESL_RALLOC(ox->dp_mem, p, sizeof(__m256) * (allocL+1) * nqf * p7X_NSCELLS + 0x1f);
       ox->ncells = ncells;
       reset_row_pointers = TRUE;
     }
@@ -162,9 +162,9 @@ p7_omx_GrowTo(P7_OMX *ox, int allocM, int allocL, int allocXL)
   /* If the X beams are too small, reallocate them. */
   if (allocXL+1 >= ox->allocXR)
     {
-      ESL_RALLOC(ox->x_mem, p,  sizeof(float) * (allocXL+1) * p7X_NXCELLS + 15);
+      ESL_RALLOC(ox->x_mem, p,  sizeof(float) * (allocXL+1) * p7X_NXCELLS + 0x1f);
       ox->allocXR = allocXL+1;
-      ox->xmx     = (float *) ( ( (unsigned long int) ((char *) ox->x_mem  + 15) & (~0xf)));
+      ox->xmx     = (float *) ( ( (unsigned long int) ((char *) ox->x_mem  + 0x1f) & (~0x1f)));
     }
 
   /* If there aren't enough rows, reallocate the row pointers; we'll
@@ -180,7 +180,7 @@ p7_omx_GrowTo(P7_OMX *ox, int allocM, int allocL, int allocXL)
     }
 
   /* must we widen the rows? */
-  if (allocM > ox->allocQ4*4)
+  if (allocM > ox->allocQ8*8)
     reset_row_pointers = TRUE;
 
   /* must we set some more valid row pointers? */
@@ -190,9 +190,9 @@ p7_omx_GrowTo(P7_OMX *ox, int allocM, int allocL, int allocXL)
   /* now reset the row pointers, if needed */
   if (reset_row_pointers)
     {
-      ox->dpb[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 15) & (~0xf)));
-      ox->dpw[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 15) & (~0xf)));
-      ox->dpf[0] = (__m256  *) ( ( (unsigned long int) ((char *) ox->dp_mem + 15) & (~0xf)));
+      ox->dpb[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
+      ox->dpw[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
+      ox->dpf[0] = (__m256  *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
 
       ox->validR = ESL_MIN( ox->ncells / (nqf * 4), ox->allocR);
       for (i = 1; i < ox->validR; i++)
@@ -202,9 +202,9 @@ p7_omx_GrowTo(P7_OMX *ox, int allocM, int allocL, int allocXL)
 	  ox->dpf[i] = ox->dpf[0] + i * nqf * p7X_NSCELLS;
 	}
 
-      ox->allocQ4  = nqf;
-      ox->allocQ8  = nqw;
-      ox->allocQ16 = nqb;
+      ox->allocQ8  = nqf;
+      ox->allocQ16 = nqw;
+      ox->allocQ32 = nqb;
     }
 
   ox->M = 0;

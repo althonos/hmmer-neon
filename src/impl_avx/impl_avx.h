@@ -17,9 +17,9 @@
 /* In calculating Q, the number of vectors we need in a row, we have
  * to make sure there's at least 2, or a striped implementation fails.
  */
-#define p7O_NQB(M)   ( ESL_MAX(2, ((((M)-1) / 32) + 1)))   /* 32 uchars  */
-#define p7O_NQW(M)   ( ESL_MAX(2, ((((M)-1) / 16)  + 1)))  /* 16 words   */
-#define p7O_NQF(M)   ( ESL_MAX(2, ((((M)-1) / 8)  + 1)))   /*  8 floats  */
+#define p7O_NQB(M)   ( ESL_MAX(2, ((((M)-1) / 32) + 1)))  /* 32 uchars  */
+#define p7O_NQW(M)   ( ESL_MAX(2, ((((M)-1) / 16) + 1)))  /* 16 words   */
+#define p7O_NQF(M)   ( ESL_MAX(2, ((((M)-1) / 8)  + 1)))  /*  8 floats  */
 
 #define p7O_EXTRA_SB 17    /* see ssvfilter.c for explanation */
 
@@ -126,9 +126,9 @@ typedef struct p7_oprofile_s {
   int    M;      /* model length                                      */
   int    max_length;    /* upper bound on emitted sequence length            */
   int    allocM;    /* maximum model length currently allocated for      */
-  int    allocQ4;    /* p7_NQF(allocM): alloc size for tf, rf             */
-  int    allocQ8;    /* p7_NQW(allocM): alloc size for tw, rw             */
-  int    allocQ16;    /* p7_NQB(allocM): alloc size for rb                 */
+  int    allocQ8;    /* p7_NQF(allocM): alloc size for tf, rf             */
+  int    allocQ16;   /* p7_NQW(allocM): alloc size for tw, rw             */
+  int    allocQ32;   /* p7_NQB(allocM): alloc size for rb                 */
   int    mode;      /* currently must be p7_LOCAL                        */
   float  nj;      /* expected # of J's: 0 or 1, uni vs. multihit       */
 
@@ -187,9 +187,9 @@ typedef struct p7_omx_s {
   void     *dp_mem;    /* DP memory shared by <dpb>, <dpw>, <dpf>                     */
   int       allocR;    /* current allocated # rows in dp{uf}. allocR >= validR >= L+1 */
   int       validR;    /* current # of rows actually pointing at DP memory            */
-  int       allocQ4;    /* current set row width in <dpf> quads:   allocQ4*4 >= M      */
-  int       allocQ8;    /* current set row width in <dpw> octets:  allocQ8*8 >= M      */
-  int       allocQ16;    /* current set row width in <dpb> 16-mers: allocQ16*16 >= M    */
+  int       allocQ8;     /* current set row width in <dpf> quads:   allocQ8*8 >= M      */
+  int       allocQ16;    /* current set row width in <dpw> octets:  allocQ16*16 >= M      */
+  int       allocQ32;    /* current set row width in <dpb> 16-mers: allocQ32*32 >= M    */
   size_t    ncells;    /* current allocation size of <dp_mem>, in accessible cells    */
 
   /* The X states (for full,parser; or NULL, for scorer)                                       */
