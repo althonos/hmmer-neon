@@ -85,13 +85,13 @@ p7_oprofile_Create(int allocM, const ESL_ALPHABET *abc)
   ESL_ALLOC(om->rwv, sizeof(__m256i *) * abc->Kp);
   ESL_ALLOC(om->rfv, sizeof(__m256  *) * abc->Kp);
 
-  /* align vector memory on 16-byte boundaries */
-  om->rbv[0] = (__m256i *) (((unsigned long int) om->rbv_mem + 15) & (~0xf));
-  om->sbv[0] = (__m256i *) (((unsigned long int) om->sbv_mem + 15) & (~0xf));
-  om->rwv[0] = (__m256i *) (((unsigned long int) om->rwv_mem + 15) & (~0xf));
-  om->twv    = (__m256i *) (((unsigned long int) om->twv_mem + 15) & (~0xf));
-  om->rfv[0] = (__m256  *) (((unsigned long int) om->rfv_mem + 15) & (~0xf));
-  om->tfv    = (__m256  *) (((unsigned long int) om->tfv_mem + 15) & (~0xf));
+  /* align vector memory on 32-byte boundaries */
+  om->rbv[0] = (__m256i *) (((unsigned long int) om->rbv_mem + 0x1f) & (~0x1f));
+  om->sbv[0] = (__m256i *) (((unsigned long int) om->sbv_mem + 0x1f) & (~0x1f));
+  om->rwv[0] = (__m256i *) (((unsigned long int) om->rwv_mem + 0x1f) & (~0x1f));
+  om->twv    = (__m256i *) (((unsigned long int) om->twv_mem + 0x1f) & (~0x1f));
+  om->rfv[0] = (__m256  *) (((unsigned long int) om->rfv_mem + 0x1f) & (~0x1f));
+  om->tfv    = (__m256  *) (((unsigned long int) om->tfv_mem + 0x1f) & (~0x1f));
 
   /* set the rest of the row pointers for match emissions */
   for (x = 1; x < abc->Kp; x++) {
@@ -100,9 +100,9 @@ p7_oprofile_Create(int allocM, const ESL_ALPHABET *abc)
     om->rwv[x] = om->rwv[0] + (x * nqw);
     om->rfv[x] = om->rfv[0] + (x * nqf);
   }
-  om->allocQ16  = nqb;
-  om->allocQ8   = nqw;
-  om->allocQ4   = nqf;
+  om->allocQ32  = nqb;
+  om->allocQ16  = nqw;
+  om->allocQ8   = nqf;
 
   /* Remaining initializations */
   om->tbm_b     = 0;
@@ -211,9 +211,9 @@ size_t
 p7_oprofile_Sizeof(P7_OPROFILE *om)
 {
   size_t n   = 0;
-  int    nqb = om->allocQ16;	/* # of uchar vectors needed for query */
-  int    nqw = om->allocQ8;     /* # of sword vectors needed for query */
-  int    nqf = om->allocQ4;     /* # of float vectors needed for query */
+  int    nqb = om->allocQ32;	/* # of uchar vectors needed for query */
+  int    nqw = om->allocQ16;    /* # of sword vectors needed for query */
+  int    nqf = om->allocQ8;     /* # of float vectors needed for query */
   int    nqs = nqb + p7O_EXTRA_SB;
 
   /* Stuff below exactly mirrors the malloc()'s in
@@ -299,13 +299,13 @@ p7_oprofile_Copy(P7_OPROFILE *om1)
   ESL_ALLOC(om2->rwv, sizeof(__m256i *) * abc->Kp);
   ESL_ALLOC(om2->rfv, sizeof(__m256  *) * abc->Kp);
 
-  /* align vector memory on 16-byte boundaries */
-  om2->rbv[0] = (__m256i *) (((unsigned long int) om2->rbv_mem + 15) & (~0xf));
-  om2->sbv[0] = (__m256i *) (((unsigned long int) om2->sbv_mem + 15) & (~0xf));
-  om2->rwv[0] = (__m256i *) (((unsigned long int) om2->rwv_mem + 15) & (~0xf));
-  om2->twv    = (__m256i *) (((unsigned long int) om2->twv_mem + 15) & (~0xf));
-  om2->rfv[0] = (__m256  *) (((unsigned long int) om2->rfv_mem + 15) & (~0xf));
-  om2->tfv    = (__m256  *) (((unsigned long int) om2->tfv_mem + 15) & (~0xf));
+  /* align vector memory on 32-byte boundaries */
+  om2->rbv[0] = (__m256i *) (((unsigned long int) om2->rbv_mem + 0x1f) & (~0x1f));
+  om2->sbv[0] = (__m256i *) (((unsigned long int) om2->sbv_mem + 0x1f) & (~0x1f));
+  om2->rwv[0] = (__m256i *) (((unsigned long int) om2->rwv_mem + 0x1f) & (~0x1f));
+  om2->twv    = (__m256i *) (((unsigned long int) om2->twv_mem + 0x1f) & (~0x1f));
+  om2->rfv[0] = (__m256  *) (((unsigned long int) om2->rfv_mem + 0x1f) & (~0x1f));
+  om2->tfv    = (__m256  *) (((unsigned long int) om2->tfv_mem + 0x1f) & (~0x1f));
 
   /* copy the vector data */
   memcpy(om2->rbv[0], om1->rbv[0], sizeof(__m256i) * nqb  * abc->Kp);
@@ -320,9 +320,9 @@ p7_oprofile_Copy(P7_OPROFILE *om1)
     om2->rwv[x] = om2->rwv[0] + (x * nqw);
     om2->rfv[x] = om2->rfv[0] + (x * nqf);
   }
-  om2->allocQ16  = nqb;
-  om2->allocQ8   = nqw;
-  om2->allocQ4   = nqf;
+  om2->allocQ32  = nqb;
+  om2->allocQ16  = nqw;
+  om2->allocQ8   = nqf;
 
   /* Remaining initializations */
   om2->tbm_b     = om1->tbm_b;
@@ -781,7 +781,7 @@ mf_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
   int     z;			/* counter within elements of one SIMD minivector               */
   union { __m256i v; uint8_t i[32]; } tmp; /* used to align and load simd minivectors           */
 
-  if (nq > om->allocQ16) ESL_EXCEPTION(eslEINVAL, "optimized profile is too small to hold conversion");
+  if (nq > om->allocQ32) ESL_EXCEPTION(eslEINVAL, "optimized profile is too small to hold conversion");
 
   /* First we determine the basis for the limited-precision MSVFilter scoring system.
    * Default: 1/3 bit units, base offset 190:  range 0..255 => -190..65 => -63.3..21.7 bits
@@ -797,7 +797,7 @@ mf_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
   {
     for (q = 0, k = 1; q < nq; q++, k++)
     {
-      for (z = 0; z < 16; z++) tmp.i[z] = ((k+ z*nq <= M) ? biased_byteify(om, p7P_MSC(gm, k+z*nq, x)) : 255);
+      for (z = 0; z < 32; z++) tmp.i[z] = ((k+ z*nq <= M) ? biased_byteify(om, p7P_MSC(gm, k+z*nq, x)) : 255);
       om->rbv[x][q]   = tmp.v;
     }
   }
@@ -840,7 +840,7 @@ vf_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
   int16_t  val;
   union { __m256i v; int16_t i[16]; } tmp; /* used to align and load simd minivectors            */
 
-  if (nq > om->allocQ8) ESL_EXCEPTION(eslEINVAL, "optimized profile is too small to hold conversion");
+  if (nq > om->allocQ16) ESL_EXCEPTION(eslEINVAL, "optimized profile is too small to hold conversion");
 
   /* First set the basis for the limited-precision scoring system.
    * Default: 1/500 bit units, base offset 12000:  range -32768..32767 => -44768..20767 => -89.54..41.53 bits
@@ -853,7 +853,7 @@ vf_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
   for (x = 0; x < gm->abc->Kp; x++)
     for (k = 1, q = 0; q < nq; q++, k++)
       {
-	for (z = 0; z < 8; z++) tmp.i[z] = ((k+ z*nq <= M) ? wordify(om, p7P_MSC(gm, k+z*nq, x)) : -32768);
+	for (z = 0; z < 16; z++) tmp.i[z] = ((k+ z*nq <= M) ? wordify(om, p7P_MSC(gm, k+z*nq, x)) : -32768);
 	om->rwv[x][q]   = tmp.v;
       }
 
@@ -872,7 +872,7 @@ vf_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
 	  case p7O_II: tg = p7P_II;  kb = k;   maxval = -1; break;
 	  }
 
-	  for (z = 0; z < 8; z++) {
+	  for (z = 0; z < 16; z++) {
 	    val      = ((kb+ z*nq < M) ? wordify(om, p7P_TSC(gm, kb+ z*nq, tg)) : -32768);
 	    tmp.i[z] = (val <= maxval) ? val : maxval; /* do not allow an II transition cost of 0, or hell may occur. */
 	  }
@@ -883,7 +883,7 @@ vf_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
   /* Finally the DD's, which are at the end of the optimized tsc vector; (j is already sitting there) */
   for (k = 1, q = 0; q < nq; q++, k++)
     {
-      for (z = 0; z < 8; z++) tmp.i[z] = ((k+ z*nq < M) ? wordify(om, p7P_TSC(gm, k+ z*nq, p7P_DD)) : -32768);
+      for (z = 0; z < 16; z++) tmp.i[z] = ((k+ z*nq < M) ? wordify(om, p7P_TSC(gm, k+ z*nq, p7P_DD)) : -32768);
       om->twv[j++] = tmp.v;
     }
 
@@ -940,13 +940,13 @@ fb_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
   int     j;			/* counter in interleaved vector arrays in the profile          */
   union { __m256 v; float x[8]; } tmp; /* used to align and load simd minivectors               */
 
-  if (nq > om->allocQ4) ESL_EXCEPTION(eslEINVAL, "optimized profile is too small to hold conversion");
+  if (nq > om->allocQ8) ESL_EXCEPTION(eslEINVAL, "optimized profile is too small to hold conversion");
 
   /* striped match scores: start at k=1 */
   for (x = 0; x < gm->abc->Kp; x++)
     for (k = 1, q = 0; q < nq; q++, k++)
       {
-	for (z = 0; z < 4; z++) tmp.x[z] = (k+ z*nq <= M) ? p7P_MSC(gm, k+z*nq, x) : -eslINFINITY;
+	for (z = 0; z < 8; z++) tmp.x[z] = (k+ z*nq <= M) ? p7P_MSC(gm, k+z*nq, x) : -eslINFINITY;
 	om->rfv[x][q] = esl_avx_expf(tmp.v);
       }
 
@@ -966,7 +966,7 @@ fb_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
 	  case p7O_II: tg = p7P_II;  kb = k;   break;
 	  }
 
-	  for (z = 0; z < 4; z++) tmp.x[z] = (kb+z*nq < M) ? p7P_TSC(gm, kb+z*nq, tg) : -eslINFINITY;
+	  for (z = 0; z < 8; z++) tmp.x[z] = (kb+z*nq < M) ? p7P_TSC(gm, kb+z*nq, tg) : -eslINFINITY;
 	  om->tfv[j++] = esl_avx_expf(tmp.v);
 	}
     }
@@ -974,7 +974,7 @@ fb_conversion(const P7_PROFILE *gm, P7_OPROFILE *om)
   /* And finally the DD's, which are at the end of the optimized tfv vector; (j is already there) */
   for (k = 1, q = 0; q < nq; q++, k++)
     {
-      for (z = 0; z < 4; z++) tmp.x[z] = (k+z*nq < M) ? p7P_TSC(gm, k+z*nq, p7P_DD) : -eslINFINITY;
+      for (z = 0; z < 8; z++) tmp.x[z] = (k+z*nq < M) ? p7P_TSC(gm, k+z*nq, p7P_DD) : -eslINFINITY;
       om->tfv[j++] = esl_avx_expf(tmp.v);
     }
 
@@ -1227,7 +1227,7 @@ p7_oprofile_GetFwdTransitionArray(const P7_OPROFILE *om, int type, float *arr )
   for (i=0; i<nq; i++) {
     // because DD transitions are held at the end of the tfv array
     tmp.v = om->tfv[ (type==p7O_DD ?  nq*7+i :  type+7*i) ];
-    for (j=0; j<4; j++)
+    for (j=0; j<8; j++)
       if ( i+1+ j*nq < om->M+1)
         arr[i+1+ j*nq]      = tmp.x[j];
   }
@@ -1272,7 +1272,7 @@ p7_oprofile_GetSSVEmissionScoreArray(const P7_OPROFILE *om, uint8_t *arr )
   for (x = 0; x < K ; x++) {
     for (q = 0, k = 1; q < nq; q++, k++) {
       tmp.v = om->rbv[x][q];
-      for (z=0; z<16; z++)
+      for (z=0; z<32; z++)
         if (  (K * (k+z*nq) + x) < cell_cnt)
           arr[ K * (k+z*nq) + x ] = tmp.i[z];
     }
@@ -1317,7 +1317,7 @@ p7_oprofile_GetFwdEmissionScoreArray(const P7_OPROFILE *om, float *arr )
   for (x = 0; x < K; x++) {
       for (q = 0, k = 1; q < nq; q++, k++) {
         tmp.v = esl_avx_logf(om->rfv[x][q]);
-        for (z = 0; z < 4; z++)
+        for (z = 0; z < 8; z++)
           if (  (K * (k+z*nq) + x) < cell_cnt)
             arr[ K * (k+z*nq) + x ] = tmp.f[z];
       }
@@ -1364,7 +1364,7 @@ p7_oprofile_GetFwdEmissionArray(const P7_OPROFILE *om, P7_BG *bg, float *arr )
   for (x = 0; x < K; x++) {
       for (q = 0, k = 1; q < nq; q++, k++) {
         tmp.v = om->rfv[x][q];
-        for (z = 0; z < 4; z++)
+        for (z = 0; z < 8; z++)
           if (  (Kp * (k+z*nq) + x) < cell_cnt)
             arr[ Kp * (k+z*nq) + x ] = tmp.f[z] * bg->f[x];
       }
@@ -1406,7 +1406,7 @@ oprofile_dump_mf(FILE *fp, const P7_OPROFILE *om)
   for (k =1, q = 0; q < nq; q++, k++)
     {
       fprintf(fp, "[ ");
-      for (z = 0; z < 16; z++)
+      for (z = 0; z < 32; z++)
 	if (k+z*nq <= M) fprintf(fp, "%4d ", k+z*nq);
 	else             fprintf(fp, "%4s ", "xx");
       fprintf(fp, "]");
@@ -1422,7 +1422,7 @@ oprofile_dump_mf(FILE *fp, const P7_OPROFILE *om)
 	{
 	  fprintf(fp, "[ ");
 	  _mm256_store_si256(&tmp.v, om->rbv[x][q]);
-	  for (z = 0; z < 16; z++) fprintf(fp, "%4d ", tmp.i[z]);
+	  for (z = 0; z < 32; z++) fprintf(fp, "%4d ", tmp.i[z]);
 	  fprintf(fp, "]");
 	}
       fprintf(fp, "\n");
@@ -1465,7 +1465,7 @@ oprofile_dump_vf(FILE *fp, const P7_OPROFILE *om)
   for (k =1, q = 0; q < nq; q++, k++)
     {
       fprintf(fp, "[ ");
-      for (z = 0; z < 8; z++)
+      for (z = 0; z < 16; z++)
 	if (k+z*nq <= M) fprintf(fp, "%6d ", k+z*nq);
 	else             fprintf(fp, "%6s ", "xx");
       fprintf(fp, "]");
@@ -1482,7 +1482,7 @@ oprofile_dump_vf(FILE *fp, const P7_OPROFILE *om)
 	{
 	  fprintf(fp, "[ ");
 	  _mm256_store_si256(&tmp.v, om->rwv[x][q]);
-	  for (z = 0; z < 8; z++) fprintf(fp, "%6d ", tmp.i[z]);
+	  for (z = 0; z < 16; z++) fprintf(fp, "%6d ", tmp.i[z]);
 	  fprintf(fp, "]");
 	}
       fprintf(fp, "\n");
@@ -1514,7 +1514,7 @@ oprofile_dump_vf(FILE *fp, const P7_OPROFILE *om)
 	  case p7O_II: kb = k;                 break;
 	  }
 	  fprintf(fp, "[ ");
-	  for (z = 0; z < 8; z++)
+	  for (z = 0; z < 16; z++)
 	    if (kb+z*nq <= M) fprintf(fp, "%6d ", kb+z*nq);
 	    else              fprintf(fp, "%6s ", "xx");
 	  fprintf(fp, "]");
@@ -1524,7 +1524,7 @@ oprofile_dump_vf(FILE *fp, const P7_OPROFILE *om)
 	{
 	  fprintf(fp, "[ ");
 	  _mm256_store_si256(&tmp.v, om->twv[q*7 + t]);
-	  for (z = 0; z < 8; z++) fprintf(fp, "%6d ", tmp.i[z]);
+	  for (z = 0; z < 16; z++) fprintf(fp, "%6d ", tmp.i[z]);
 	  fprintf(fp, "]");
 	}
       fprintf(fp, "\n");
@@ -1535,7 +1535,7 @@ oprofile_dump_vf(FILE *fp, const P7_OPROFILE *om)
   for (k =1, q = 0; q < nq; q++, k++)
     {
       fprintf(fp, "[ ");
-      for (z = 0; z < 8; z++)
+      for (z = 0; z < 16; z++)
 	if (k+z*nq <= M) fprintf(fp, "%6d ", k+z*nq);
 	else             fprintf(fp, "%6s ", "xx");
       fprintf(fp, "]");
@@ -1545,7 +1545,7 @@ oprofile_dump_vf(FILE *fp, const P7_OPROFILE *om)
     {
       fprintf(fp, "[ ");
       _mm256_store_si256(&tmp.v, om->twv[j]);
-      for (z = 0; z < 8; z++) fprintf(fp, "%6d ", tmp.i[z]);
+      for (z = 0; z < 16; z++) fprintf(fp, "%6d ", tmp.i[z]);
       fprintf(fp, "]");
     }
   fprintf(fp, "\n");
@@ -1592,7 +1592,7 @@ oprofile_dump_fb(FILE *fp, const P7_OPROFILE *om, int width, int precision)
       for (k =1, q = 0; q < nq; q++, k++)
 	{
 	  fprintf(fp, "[ ");
-	  for (z = 0; z < 4; z++)
+	  for (z = 0; z < 8; z++)
 	    if (k+z*nq <= M) fprintf(fp, "%*d ", width, k+z*nq);
 	    else             fprintf(fp, "%*s ", width, "xx");
 	  fprintf(fp, "]");
@@ -1602,7 +1602,7 @@ oprofile_dump_fb(FILE *fp, const P7_OPROFILE *om, int width, int precision)
 	{
 	  fprintf(fp, "[ ");
 	  tmp.v = om->rfv[x][q];
-	  for (z = 0; z < 4; z++) fprintf(fp, "%*.*f ", width, precision, tmp.x[z]);
+	  for (z = 0; z < 8; z++) fprintf(fp, "%*.*f ", width, precision, tmp.x[z]);
 	  fprintf(fp, "]");
 	}
       fprintf(fp, "\n\n");
@@ -1636,7 +1636,7 @@ oprofile_dump_fb(FILE *fp, const P7_OPROFILE *om, int width, int precision)
 		  break;
 	  }
 	  fprintf(fp, "[ ");
-	  for (z = 0; z < 4; z++)
+	  for (z = 0; z < 8; z++)
 	    if (kb+z*nq <= M) fprintf(fp, "%*d ", width, kb+z*nq);
 	    else              fprintf(fp, "%*s ", width, "xx");
 	  fprintf(fp, "]");
@@ -1646,7 +1646,7 @@ oprofile_dump_fb(FILE *fp, const P7_OPROFILE *om, int width, int precision)
 	{
 	  fprintf(fp, "[ ");
 	  tmp.v = om->tfv[q*7 + t];
-	  for (z = 0; z < 4; z++) fprintf(fp, "%*.*f ", width, precision, tmp.x[z]);
+	  for (z = 0; z < 8; z++) fprintf(fp, "%*.*f ", width, precision, tmp.x[z]);
 	  fprintf(fp, "]");
 	}
       fprintf(fp, "\n");
@@ -1657,7 +1657,7 @@ oprofile_dump_fb(FILE *fp, const P7_OPROFILE *om, int width, int precision)
   for (k =1, q = 0; q < nq; q++, k++)
     {
       fprintf(fp, "[ ");
-      for (z = 0; z < 4; z++)
+      for (z = 0; z < 8; z++)
 	if (k+z*nq <= M) fprintf(fp, "%*d ", width, k+z*nq);
 	else             fprintf(fp, "%*s ", width, "xx");
       fprintf(fp, "]");
@@ -1667,7 +1667,7 @@ oprofile_dump_fb(FILE *fp, const P7_OPROFILE *om, int width, int precision)
     {
       fprintf(fp, "[ ");
       tmp.v = om->tfv[j];
-      for (z = 0; z < 4; z++) fprintf(fp, "%*.*f ", width, precision, tmp.x[z]);
+      for (z = 0; z < 8; z++) fprintf(fp, "%*.*f ", width, precision, tmp.x[z]);
       fprintf(fp, "]");
     }
   fprintf(fp, "\n");
@@ -1798,13 +1798,13 @@ p7_oprofile_Sample(ESL_RANDOMNESS *r, const ESL_ALPHABET *abc, const P7_BG *bg, 
 int
 p7_oprofile_Compare(const P7_OPROFILE *om1, const P7_OPROFILE *om2, float tol, char *errmsg)
 {
-  int Q4  = p7O_NQF(om1->M);
-  int Q8  = p7O_NQW(om1->M);
-  int Q16 = p7O_NQB(om1->M);
+  int Q8  = p7O_NQF(om1->M);
+  int Q16 = p7O_NQW(om1->M);
+  int Q32 = p7O_NQB(om1->M);
   int q, r, x, y;
-  union { __m256i v; uint8_t c[32]; } a16, b16;
-  union { __m256i v; int16_t w[16]; } a8,  b8;
-  union { __m256  v; float   x[8];  } a4,  b4;
+  union { __m256i v; uint8_t c[32]; } a32, b32;
+  union { __m256i v; int16_t w[16]; } a16, b16;
+  union { __m256  v; float   x[8];  } a8,  b8;
 
   if (om1->mode      != om2->mode)      ESL_FAIL(eslFAIL, errmsg, "comparison failed: mode");
   if (om1->L         != om2->L)         ESL_FAIL(eslFAIL, errmsg, "comparison failed: L");
@@ -1814,10 +1814,10 @@ p7_oprofile_Compare(const P7_OPROFILE *om1, const P7_OPROFILE *om2, float tol, c
 
   /* MSVFilter part */
   for (x = 0; x < om1->abc->Kp; x++)
-    for (q = 0; q < Q16; q++)
+    for (q = 0; q < Q32; q++)
       {
-	a16.v = om1->rbv[x][q]; b16.v = om2->rbv[x][q];
-	for (r = 0; r < 16; r++) if (a16.c[r] != b16.c[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: rb[%d] elem %d", q, r);
+	a32.v = om1->rbv[x][q]; b32.v = om2->rbv[x][q];
+	for (r = 0; r < 32; r++) if (a32.c[r] != b32.c[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: rb[%d] elem %d", q, r);
       }
   if (om1->tbm_b     != om2->tbm_b)     ESL_FAIL(eslFAIL, errmsg, "comparison failed: tbm_b");
   if (om1->tec_b     != om2->tec_b)     ESL_FAIL(eslFAIL, errmsg, "comparison failed: tec_b");
@@ -1828,15 +1828,15 @@ p7_oprofile_Compare(const P7_OPROFILE *om1, const P7_OPROFILE *om2, float tol, c
 
   /* ViterbiFilter() part */
   for (x = 0; x < om1->abc->Kp; x++)
-    for (q = 0; q < Q8; q++)
+    for (q = 0; q < Q16; q++)
       {
-	a8.v = om1->rwv[x][q]; b8.v = om2->rwv[x][q];
-	for (r = 0; r < 8; r++) if (a8.w[r] != b8.w[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: rw[%d] elem %d", q, r);
+	a16.v = om1->rwv[x][q]; b16.v = om2->rwv[x][q];
+	for (r = 0; r < 16; r++) if (a16.w[r] != b16.w[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: rw[%d] elem %d", q, r);
       }
-  for (q = 0; q < 8*Q16; q++)
+  for (q = 0; q < 8*Q32; q++)
     {
-      a8.v = om1->twv[q]; b8.v = om2->twv[q];
-      for (r = 0; r < 8; r++) if (a8.w[r] != b8.w[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: tw[%d] elem %d", q, r);
+      a16.v = om1->twv[q]; b16.v = om2->twv[q];
+      for (r = 0; r < 16; r++) if (a16.w[r] != b16.w[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: tw[%d] elem %d", q, r);
     }
   for (x = 0; x < p7O_NXSTATES; x++)
     for (y = 0; y < p7O_NXTRANS; y++)
@@ -1848,15 +1848,15 @@ p7_oprofile_Compare(const P7_OPROFILE *om1, const P7_OPROFILE *om2, float tol, c
 
   /* Forward/Backward part */
   for (x = 0; x < om1->abc->Kp; x++)
-    for (q = 0; q < Q4; q++)
+    for (q = 0; q < Q8; q++)
       {
-	a4.v = om1->rfv[x][q]; b4.v = om2->rfv[x][q];
-	for (r = 0; r < 4; r++) if (esl_FCompare(a4.x[r], b4.x[r], tol) != eslOK)  ESL_FAIL(eslFAIL, errmsg, "comparison failed: rf[%d] elem %d", q, r);
+	a8.v = om1->rfv[x][q]; b8.v = om2->rfv[x][q];
+	for (r = 0; r < 8; r++) if (esl_FCompare(a8.x[r], b8.x[r], tol) != eslOK)  ESL_FAIL(eslFAIL, errmsg, "comparison failed: rf[%d] elem %d", q, r);
       }
-  for (q = 0; q < 8*Q4; q++)
+  for (q = 0; q < 8*Q8; q++)
     {
-      a4.v = om1->tfv[q]; b4.v = om2->tfv[q];
-      for (r = 0; r < 4; r++) if (a4.x[r] != b4.x[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: tf[%d] elem %d", q, r);
+      a8.v = om1->tfv[q]; b8.v = om2->tfv[q];
+      for (r = 0; r < 8; r++) if (a8.x[r] != b8.x[r]) ESL_FAIL(eslFAIL, errmsg, "comparison failed: tf[%d] elem %d", q, r);
     }
   for (x = 0; x < p7O_NXSTATES; x++)
     if (esl_vec_FCompare(om1->xf[x], om2->xf[x], p7O_NXTRANS, tol) != eslOK) ESL_FAIL(eslFAIL, errmsg, "comparison failed: xf[%d] vector", x);
