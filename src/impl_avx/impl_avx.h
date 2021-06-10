@@ -69,7 +69,7 @@ enum p7o_xtransitions_e { p7O_MOVE = 0, p7O_LOOP = 1 };
 enum p7o_tsc_e          { p7O_BM   = 0, p7O_MM   = 1,  p7O_IM = 2,  p7O_DM = 3, p7O_MD   = 4, p7O_MI   = 5,  p7O_II = 6,  p7O_DD = 7 };
 
 typedef struct p7_oprofile_s {
-  /* MSVFilter uses scaled, biased uchars: 16x unsigned byte vectors                 */
+  /* MSVFilter uses scaled, biased uchars: 32x unsigned byte vectors                 */
   __m256i **rbv;         /* match scores [x][q]: rm, rm[0] are allocated      */
   __m256i **sbv;         /* match scores for ssvfilter                        */
   uint8_t   tbm_b;    /* constant B->Mk cost:    scaled log 2/M(M+1)       */
@@ -79,7 +79,7 @@ typedef struct p7_oprofile_s {
   uint8_t   base_b;            /* typically +190: offset of uchar scores            */
   uint8_t   bias_b;    /* positive bias to emission scores, make them >=0   */
 
-  /* ViterbiFilter uses scaled swords: 8x signed 16-bit integer vectors              */
+  /* ViterbiFilter uses scaled swords: 16x signed 16-bit integer vectors              */
   __m256i **rwv;    /* [x][q]: rw, rw[0] are allocated  [Kp][Q8]         */
   __m256i  *twv;    /* transition score blocks          [8*Q8]           */
   int16_t   xw[p7O_NXSTATES][p7O_NXTRANS]; /* NECJ state transition costs            */
@@ -88,9 +88,9 @@ typedef struct p7_oprofile_s {
   int16_t   ddbound_w;    /* threshold precalculated for lazy DD evaluation    */
   float     ncj_roundoff;  /* missing precision on NN,CC,JJ after rounding      */
 
-  /* Forward, Backward use IEEE754 single-precision floats: 4x vectors               */
-  __m256 **rfv;         /* [x][q]:  rf, rf[0] are allocated [Kp][Q4]         */
-  __m256  *tfv;          /* transition probability blocks    [8*Q4]           */
+  /* Forward, Backward use IEEE754 single-precision floats: 8x vectors               */
+  __m256 **rfv;         /* [x][q]:  rf, rf[0] are allocated [Kp][Q8]         */
+  __m256  *tfv;          /* transition probability blocks    [8*Q8]           */
   float    xf[p7O_NXSTATES][p7O_NXTRANS]; /* NECJ transition costs                   */
 
   /* Our actual vector mallocs, before we align the memory                           */
@@ -187,9 +187,9 @@ typedef struct p7_omx_s {
   void     *dp_mem;    /* DP memory shared by <dpb>, <dpw>, <dpf>                     */
   int       allocR;    /* current allocated # rows in dp{uf}. allocR >= validR >= L+1 */
   int       validR;    /* current # of rows actually pointing at DP memory            */
-  int       allocQ8;     /* current set row width in <dpf> quads:   allocQ8*8 >= M      */
-  int       allocQ16;    /* current set row width in <dpw> octets:  allocQ16*16 >= M      */
-  int       allocQ32;    /* current set row width in <dpb> 16-mers: allocQ32*32 >= M    */
+  int       allocQ8;     /* current set row width in <dpf> octets:  allocQ8*8 >= M      */
+  int       allocQ16;    /* current set row width in <dpw> 16-mers: allocQ16*16 >= M      */
+  int       allocQ32;    /* current set row width in <dpb> 32-mers: allocQ32*32 >= M    */
   size_t    ncells;    /* current allocation size of <dp_mem>, in accessible cells    */
 
   /* The X states (for full,parser; or NULL, for scorer)                                       */

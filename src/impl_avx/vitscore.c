@@ -242,7 +242,7 @@ p7_ViterbiScore(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, fl
 #include "esl_stopwatch.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -401,7 +401,7 @@ utest_viterbi_score(ESL_RANDOMNESS *r, ESL_ALPHABET *abc, P7_BG *bg, int M, int 
 #include "esl_getopts.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -474,7 +474,7 @@ main(int argc, char **argv)
 #include "esl_sqio.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 int
 main(int argc, char **argv)

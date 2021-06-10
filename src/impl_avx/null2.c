@@ -56,7 +56,7 @@ p7_Null2_ByExpectation(const P7_OPROFILE *om, const P7_OMX *pp, float *null2)
    * in generating the Ld residues in this domain.
    * The 0 row in <wrk> is used to hold these numbers.
    */
-  memcpy(pp->dpf[0], pp->dpf[1], sizeof(__m128) * 3 * Q);
+  memcpy(pp->dpf[0], pp->dpf[1], sizeof(__m256) * 3 * Q);
   XMXo(0,p7X_N) = XMXo(1,p7X_N);
   XMXo(0,p7X_C) = XMXo(1,p7X_C); /* 0.0 */
   XMXo(0,p7X_J) = XMXo(1,p7X_J); /* 0.0 */
@@ -244,7 +244,7 @@ p7_Null2_ByTrace(const P7_OPROFILE *om, const P7_TRACE *tr, int zstart, int zend
 #include "esl_stopwatch.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -447,7 +447,7 @@ utest_null2_expectation(ESL_RANDOMNESS *r, ESL_ALPHABET *abc, P7_BG *bg, int M, 
 #include "esl_random.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/

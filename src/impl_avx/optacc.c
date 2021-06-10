@@ -450,7 +450,7 @@ select_b(const P7_OPROFILE *om, const P7_OMX *ox, int i)
 #include "esl_stopwatch.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -766,7 +766,7 @@ utest_optacc(ESL_GETOPTS *go, ESL_RANDOMNESS *r, ESL_ALPHABET *abc, P7_BG *bg, i
 #include "esl_getopts.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -841,7 +841,7 @@ main(int argc, char **argv)
 #include "esl_sqio.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/

@@ -194,7 +194,7 @@ p7_omx_GrowTo(P7_OMX *ox, int allocM, int allocL, int allocXL)
       ox->dpw[0] = (__m256i *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
       ox->dpf[0] = (__m256  *) ( ( (unsigned long int) ((char *) ox->dp_mem + 0x1f) & (~0x1f)));
 
-      ox->validR = ESL_MIN( ox->ncells / (nqf * 8), ox->allocR);
+      ox->validR = ESL_MIN( ox->ncells / (nqf * 4), ox->allocR);
       for (i = 1; i < ox->validR; i++)
 	{
 	  ox->dpb[i] = ox->dpb[0] + i * nqb;
