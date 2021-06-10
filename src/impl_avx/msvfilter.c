@@ -73,58 +73,58 @@
 int
 p7_MSVFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, float *ret_sc)
 {
-  register __m128i mpv;            /* previous row values                                       */
-  register __m128i xEv;		   /* E state: keeps max for Mk->E as we go                     */
-  register __m128i xBv;		   /* B state: splatted vector of B[i-1] for B->Mk calculations */
-  register __m128i sv;		   /* temp storage of 1 curr row value in progress              */
-  register __m128i biasv;	   /* emission bias in a vector                                 */
+  register __m256i mpv;            /* previous row values                                       */
+  register __m256i xEv;		   /* E state: keeps max for Mk->E as we go                     */
+  register __m256i xBv;		   /* B state: splatted vector of B[i-1] for B->Mk calculations */
+  register __m256i sv;		   /* temp storage of 1 curr row value in progress              */
+  register __m256i biasv;	   /* emission bias in a vector                                 */
   uint8_t  xJ;                     /* special states' scores                                    */
   int i;			   /* counter over sequence positions 1..L                      */
   int q;			   /* counter over vectors 0..nq-1                              */
   int Q        = p7O_NQB(om->M);   /* segment length: # of vectors                              */
-  __m128i *dp  = ox->dpb[0];	   /* we're going to use dp[0][0..q..Q-1], not {MDI}MX(q) macros*/
-  __m128i *rsc;			   /* will point at om->rbv[x] for residue x[i]                 */
+  __m256i *dp  = ox->dpb[0];	   /* we're going to use dp[0][0..q..Q-1], not {MDI}MX(q) macros*/
+  __m256i *rsc;			   /* will point at om->rbv[x] for residue x[i]                 */
 
-  __m128i xJv;                     /* vector for states score                                   */
-  __m128i tjbmv;                   /* vector for cost of moving from either J or N through B to an M state */
-  __m128i tecv;                    /* vector for E->C  cost                                     */
-  __m128i basev;                   /* offset for scores                                         */
-  __m128i ceilingv;                /* saturateed simd value used to test for overflow           */
-  __m128i tempv;                   /* work vector                                               */
+  __m256i xJv;                     /* vector for states score                                   */
+  __m256i tjbmv;                   /* vector for cost of moving from either J or N through B to an M state */
+  __m256i tecv;                    /* vector for E->C  cost                                     */
+  __m256i basev;                   /* offset for scores                                         */
+  __m256i ceilingv;                /* saturateed simd value used to test for overflow           */
+  __m256i tempv;                   /* work vector                                               */
 
   int cmp;
   int status = eslOK;
 
   /* Check that the DP matrix is ok for us. */
-  if (Q > ox->allocQ16)  ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
+  if (Q > ox->allocQ32)  ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
   ox->M   = om->M;
 
   /* Try highly optimized ssv filter first */
-  status = p7_SSVFilter(dsq, L, om, ret_sc);
-  if (status != eslENORESULT) return status;
+  // status = p7_SSVFilter(dsq, L, om, ret_sc);
+  // if (status != eslENORESULT) return status;
 
   /* Initialization. In offset unsigned arithmetic, -infinity is 0, and 0 is om->base.
    */
-  biasv = _mm_set1_epi8((int8_t) om->bias_b); /* yes, you can set1() an unsigned char vector this way */
-  for (q = 0; q < Q; q++) dp[q] = _mm_setzero_si128();
+  biasv = _mm256_set1_epi8((int8_t) om->bias_b); /* yes, you can set1() an unsigned char vector this way */
+  for (q = 0; q < Q; q++) dp[q] = _mm256_setzero_si256();
   xJ   = 0;
 
   /* saturate simd register for overflow test */
-  ceilingv = _mm_cmpeq_epi8(biasv, biasv);
-  basev = _mm_set1_epi8((int8_t) om->base_b);
+  ceilingv = _mm256_cmpeq_epi8(biasv, biasv);
+  basev = _mm256_set1_epi8((int8_t) om->base_b);
 
-  tjbmv = _mm_set1_epi8((int8_t) om->tjb_b + (int8_t) om->tbm_b);
-  tecv = _mm_set1_epi8((int8_t) om->tec_b);
+  tjbmv = _mm256_set1_epi8((int8_t) om->tjb_b + (int8_t) om->tbm_b);
+  tecv = _mm256_set1_epi8((int8_t) om->tec_b);
 
-  xJv = _mm_subs_epu8(biasv, biasv);
-  xBv = _mm_subs_epu8(basev, tjbmv);
+  xJv = _mm256_subs_epu8(biasv, biasv);
+  xBv = _mm256_subs_epu8(basev, tjbmv);
 
 #if eslDEBUGLEVEL > 0
   if (ox->debugging)
   {
       uint8_t xB;
-      xB = _mm_extract_epi16(xBv, 0);
-      xJ = _mm_extract_epi16(xJv, 0);
+      xB = _mm256_extract_epi16(xBv, 0);
+      xJ = _mm256_extract_epi16(xJv, 0);
       p7_omx_DumpMFRow(ox, 0, 0, 0, xJ, xB, xJ);
   }
 #endif
@@ -132,29 +132,29 @@ p7_MSVFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, float
   for (i = 1; i <= L; i++)
   {
       rsc = om->rbv[dsq[i]];
-      xEv = _mm_setzero_si128();
+      xEv = _mm256_setzero_si256();
 
       /* Right shifts by 1 byte. 4,8,12,x becomes x,4,8,12.
        * Because ia32 is littlendian, this means a left bit shift.
        * Zeros shift on automatically, which is our -infinity.
        */
-      mpv = _mm_slli_si128(dp[Q-1], 1);
+      mpv = _mm256_alignr_epi8(dp[Q-1], _mm256_permute2x128_si256(dp[Q-1], dp[Q-1], _MM_SHUFFLE(0, 0, 3, 0)), 0xf);
       for (q = 0; q < Q; q++)
       {
         /* Calculate new MMXo(i,q); don't store it yet, hold it in sv. */
-        sv   = _mm_max_epu8(mpv, xBv);
-        sv   = _mm_adds_epu8(sv, biasv);
-        sv   = _mm_subs_epu8(sv, *rsc);   rsc++;
-        xEv  = _mm_max_epu8(xEv, sv);
+        sv   = _mm256_max_epu8(mpv, xBv);
+        sv   = _mm256_adds_epu8(sv, biasv);
+        sv   = _mm256_subs_epu8(sv, *rsc);   rsc++;
+        xEv  = _mm256_max_epu8(xEv, sv);
 
         mpv   = dp[q];   	  /* Load {MDI}(i-1,q) into mpv */
         dp[q] = sv;       	  /* Do delayed store of M(i,q) now that memory is usable */
       }
 
       /* test for the overflow condition */
-      tempv = _mm_adds_epu8(xEv, biasv);
-      tempv = _mm_cmpeq_epi8(tempv, ceilingv);
-      cmp = _mm_movemask_epi8(tempv);
+      tempv = _mm256_adds_epu8(xEv, biasv);
+      tempv = _mm256_cmpeq_epi8(tempv, ceilingv);
+      cmp = _mm256_movemask_epi8(tempv);
 
       /* Now the "special" states, which start from Mk->E (->C, ->J->B)
        * Use shuffles instead of shifts so when the last max has completed,
@@ -162,15 +162,12 @@ p7_MSVFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, float
        * max value.  Then the last shuffle will broadcast the max value
        * to all simd elements.
        */
-      tempv = _mm_shuffle_epi32(xEv, _MM_SHUFFLE(2, 3, 0, 1));
-      xEv = _mm_max_epu8(xEv, tempv);
-      tempv = _mm_shuffle_epi32(xEv, _MM_SHUFFLE(0, 1, 2, 3));
-      xEv = _mm_max_epu8(xEv, tempv);
-      tempv = _mm_shufflelo_epi16(xEv, _MM_SHUFFLE(2, 3, 0, 1));
-      xEv = _mm_max_epu8(xEv, tempv);
-      tempv = _mm_srli_si128(xEv, 1);
-      xEv = _mm_max_epu8(xEv, tempv);
-      xEv = _mm_shuffle_epi32(xEv, _MM_SHUFFLE(0, 0, 0, 0));
+       xEv = _mm256_max_epu8(xEv, _mm256_permute2x128_si256(xEv, xEv, 0x01));
+       xEv = _mm256_max_epu8(xEv, _mm256_shuffle_epi32     (xEv, _MM_SHUFFLE(1, 0, 3, 2)));
+       xEv = _mm256_max_epu8(xEv, _mm256_shuffle_epi32     (xEv, _MM_SHUFFLE(2, 3, 0, 1)));
+       xEv = _mm256_max_epu8(xEv, _mm256_shufflelo_epi16   (xEv, _MM_SHUFFLE(2, 3, 0, 1)));
+       xEv = _mm256_max_epu8(xEv, _mm256_srli_si256        (xEv, 1));
+       xEv = _mm256_max_epu8(xEv, _mm256_shuffle_epi32     (xEv, _MM_SHUFFLE(0, 0, 0, 0)));
 
       /* immediately detect overflow */
       if (cmp != 0x0000)
@@ -179,25 +176,25 @@ p7_MSVFilter(const ESL_DSQ *dsq, int L, const P7_OPROFILE *om, P7_OMX *ox, float
         return eslERANGE;
       }
 
-      xEv = _mm_subs_epu8(xEv, tecv);
-      xJv = _mm_max_epu8(xJv,xEv);
+      xEv = _mm256_subs_epu8(xEv, tecv);
+      xJv = _mm256_max_epu8(xJv,xEv);
 
-      xBv = _mm_max_epu8(basev, xJv);
-      xBv = _mm_subs_epu8(xBv, tjbmv);
+      xBv = _mm256_max_epu8(basev, xJv);
+      xBv = _mm256_subs_epu8(xBv, tjbmv);
 
 #if eslDEBUGLEVEL > 0
       if (ox->debugging)
       {
         uint8_t xB, xE;
-        xB = _mm_extract_epi16(xBv, 0);
-        xE = _mm_extract_epi16(xEv, 0);
-        xJ = _mm_extract_epi16(xJv, 0);
+        xB = _mm256_extract_epi16(xBv, 0);
+        xE = _mm256_extract_epi16(xEv, 0);
+        xJ = _mm256_extract_epi16(xJv, 0);
         p7_omx_DumpMFRow(ox, i, xE, 0, xJ, xB, xJ);
       }
 #endif
   } /* end loop over sequence residues 1..L */
 
-  xJ = (uint8_t) _mm_extract_epi16(xJv, 0);
+  xJ = (uint8_t) _mm256_extract_epi16(xJv, 0);
 
   /* finally C->T, and add our missing precision on the NN,CC,JJ back */
   *ret_sc = ((float) (xJ - om->tjb_b) - (float) om->base_b);
@@ -257,20 +254,20 @@ p7_SSVFilter_longtarget(const ESL_DSQ *dsq, int L, P7_OPROFILE *om, P7_OMX *ox, 
                         P7_BG *bg, double P, P7_HMM_WINDOWLIST *windowlist)
 {
 
-  register __m128i mpv;            /* previous row values                                       */
-  register __m128i xEv;		   /* E state: keeps max for Mk->E for a single iteration       */
-  register __m128i xBv;		   /* B state: splatted vector of B[i-1] for B->Mk calculations */
-  register __m128i sv;		   /* temp storage of 1 curr row value in progress              */
-  register __m128i biasv;	   /* emission bias in a vector                                 */
+  register __m256i mpv;            /* previous row values                                       */
+  register __m256i xEv;		   /* E state: keeps max for Mk->E for a single iteration       */
+  register __m256i xBv;		   /* B state: splatted vector of B[i-1] for B->Mk calculations */
+  register __m256i sv;		   /* temp storage of 1 curr row value in progress              */
+  register __m256i biasv;	   /* emission bias in a vector                                 */
   int i;			   /* counter over sequence positions 1..L                      */
   int q;			   /* counter over vectors 0..nq-1                              */
   int Q        = p7O_NQB(om->M);   /* segment length: # of vectors                              */
-  __m128i *dp  = ox->dpb[0];	   /* we're going to use dp[0][0..q..Q-1], not {MDI}MX(q) macros*/
-  __m128i *rsc;			   /* will point at om->rbv[x] for residue x[i]                 */
-  __m128i tjbmv;                   /* vector for J->B move cost + B->M move costs               */
-  __m128i basev;                   /* offset for scores                                         */
-  __m128i ceilingv;                /* saturated simd value used to test for overflow           */
-  __m128i tempv;                   /* work vector                                               */
+  __m256i *dp  = ox->dpb[0];	   /* we're going to use dp[0][0..q..Q-1], not {MDI}MX(q) macros*/
+  __m256i *rsc;			   /* will point at om->rbv[x] for residue x[i]                 */
+  __m256i tjbmv;                   /* vector for J->B move cost + B->M move costs               */
+  __m256i basev;                   /* offset for scores                                         */
+  __m256i ceilingv;                /* saturated simd value used to test for overflow           */
+  __m256i tempv;                   /* work vector                                               */
   int cmp;
   int k;
   int n;
@@ -285,7 +282,7 @@ p7_SSVFilter_longtarget(const ESL_DSQ *dsq, int L, P7_OPROFILE *om, P7_OMX *ox, 
   int pos_since_max;
   float ret_sc;
 
-  union { __m128i v; uint8_t b[16]; } u;
+  union { __m256i v; uint8_t b[32]; } u;
 
   /*
    * Computing the score required to let P meet the F1 prob threshold
@@ -307,13 +304,13 @@ p7_SSVFilter_longtarget(const ESL_DSQ *dsq, int L, P7_OPROFILE *om, P7_OMX *ox, 
    *  1 bit for each doubling of the length model, so they offset.
    */
   float nullsc;
-  __m128i sc_threshv;
+  __m256i sc_threshv;
   uint8_t sc_thresh;
   float invP = esl_gumbel_invsurv(P, om->evparam[p7_MMU],  om->evparam[p7_MLAMBDA]);
 
 
   /* Check that the DP matrix is ok for us. */
-  if (Q > ox->allocQ16)  ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
+  if (Q > ox->allocQ32)  ESL_EXCEPTION(eslEINVAL, "DP matrix allocated too small");
   ox->M   = om->M;
 
 
@@ -322,35 +319,35 @@ p7_SSVFilter_longtarget(const ESL_DSQ *dsq, int L, P7_OPROFILE *om, P7_OMX *ox, 
   p7_bg_NullOne  (bg, dsq, om->max_length, &nullsc);
 
   sc_thresh = (int) ceil( ( ( nullsc  + (invP * eslCONST_LOG2) + 3.0 )  * om->scale_b ) + om->base_b +  om->tec_b  + om->tjb_b );
-  sc_threshv = _mm_set1_epi8((int8_t) 255 - sc_thresh);
+  sc_threshv = _mm256_set1_epi8((int8_t) 255 - sc_thresh);
 
   /* Initialization. In offset unsigned  arithmetic, -infinity is 0, and 0 is om->base.
    */
-  biasv = _mm_set1_epi8((int8_t) om->bias_b); /* yes, you can set1() an unsigned char vector this way */
-  ceilingv = _mm_cmpeq_epi8(biasv, biasv);
-  for (q = 0; q < Q; q++) dp[q] = _mm_setzero_si128();
+  biasv = _mm256_set1_epi8((int8_t) om->bias_b); /* yes, you can set1() an unsigned char vector this way */
+  ceilingv = _mm256_cmpeq_epi8(biasv, biasv);
+  for (q = 0; q < Q; q++) dp[q] = _mm256_setzero_si256();
 
-  basev = _mm_set1_epi8((int8_t) om->base_b);
-  tjbmv = _mm_set1_epi8((int8_t) om->tjb_b + (int8_t) om->tbm_b);
+  basev = _mm256_set1_epi8((int8_t) om->base_b);
+  tjbmv = _mm256_set1_epi8((int8_t) om->tjb_b + (int8_t) om->tbm_b);
 
-  xBv = _mm_subs_epu8(basev, tjbmv);
+  xBv = _mm256_subs_epu8(basev, tjbmv);
 
   for (i = 1; i <= L; i++)
     {
       rsc = om->rbv[dsq[i]];
-      xEv = _mm_setzero_si128();
+      xEv = _mm256_setzero_si256();
 
       /* Right shifts by 1 byte. 4,8,12,x becomes x,4,8,12.
        * Because ia32 is littlendian, this means a left bit shift.
        * Zeros shift on automatically, which is our -infinity.
        */
-      mpv = _mm_slli_si128(dp[Q-1], 1);
+      mpv = _mm256_alignr_epi8(dp[Q-1], _mm256_permute2x128_si256(dp[Q-1], dp[Q-1], _MM_SHUFFLE(0, 0, 3, 0)), 0xf);
       for (q = 0; q < Q; q++) {
         /* Calculate new MMXo(i,q); don't store it yet, hold it in sv. */
-        sv   = _mm_max_epu8(mpv, xBv);
-        sv   = _mm_adds_epu8(sv, biasv);
-        sv   = _mm_subs_epu8(sv, *rsc);   rsc++;
-        xEv  = _mm_max_epu8(xEv, sv);
+        sv   = _mm256_max_epu8(mpv, xBv);
+        sv   = _mm256_adds_epu8(sv, biasv);
+        sv   = _mm256_subs_epu8(sv, *rsc);   rsc++;
+        xEv  = _mm256_max_epu8(xEv, sv);
 
         mpv   = dp[q];   	  /* Load {MDI}(i-1,q) into mpv */
         dp[q] = sv;       	  /* Do delayed store of M(i,q) now that memory is usable */
@@ -358,9 +355,9 @@ p7_SSVFilter_longtarget(const ESL_DSQ *dsq, int L, P7_OPROFILE *om, P7_OMX *ox, 
 
       /* test if the pthresh significance threshold has been reached;
        * note: don't use _mm_cmpgt_epi8, because it's a signed comparison, which won't work on uint8s */
-      tempv = _mm_adds_epu8(xEv, sc_threshv);
-      tempv = _mm_cmpeq_epi8(tempv, ceilingv);
-      cmp = _mm_movemask_epi8(tempv);
+      tempv = _mm256_adds_epu8(xEv, sc_threshv);
+      tempv = _mm256_cmpeq_epi8(tempv, ceilingv);
+      cmp = _mm256_movemask_epi8(tempv);
 
       if (cmp != 0) {  //hit pthresh, so add position to list and reset values
         //figure out which model state hit threshold
@@ -368,14 +365,14 @@ p7_SSVFilter_longtarget(const ESL_DSQ *dsq, int L, P7_OPROFILE *om, P7_OMX *ox, 
         rem_sc = -1;
         for (q = 0; q < Q; q++) {  /// Unpack and unstripe, so we can find the state that exceeded pthresh
           u.v = dp[q];
-          for (k = 0; k < 16; k++) { // unstripe
+          for (k = 0; k < 32; k++) { // unstripe
             //(q+Q*k+1) is the model position k at which the xE score is found
             if (u.b[k] >= sc_thresh && u.b[k] > rem_sc && (q+Q*k+1) <= om->M) {
               end = (q+Q*k+1);
               rem_sc = u.b[k];
             }
           }
-          dp[q] = _mm_set1_epi8(0); // while we're here ... this will cause values to get reset to xB in next dp iteration
+          dp[q] = _mm256_set1_epi8(0); // while we're here ... this will cause values to get reset to xB in next dp iteration
         }
 
         //recover the diagonal that hit threshold
@@ -485,7 +482,7 @@ p7_SSVFilter_longtarget(const ESL_DSQ *dsq, int L, P7_OPROFILE *om, P7_OMX *ox, 
 #include "esl_stopwatch.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -670,7 +667,7 @@ utest_msv_filter(ESL_RANDOMNESS *r, ESL_ALPHABET *abc, P7_BG *bg, int M, int L, 
 #include "esl_getopts.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
@@ -748,7 +745,7 @@ main(int argc, char **argv)
 #include "esl_sqio.h"
 
 #include "hmmer.h"
-#include "impl_sse.h"
+#include "impl_avx.h"
 
 static ESL_OPTIONS options[] = {
   /* name           type      default  env  range toggles reqs incomp  help                                       docgroup*/
